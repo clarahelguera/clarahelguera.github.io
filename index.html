@@ -31,6 +31,10 @@ body{color:#fff;font:12px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
 .nombre{font-family:var(--font-nombre);font-weight:var(--peso-nombre);font-size:var(--tam-nombre);letter-spacing:var(--espaciado-nombre);line-height:1.1}
 .insta{position:fixed;right:22px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;color:#fff;text-decoration:none;text-shadow:0 0 8px rgba(0,0,0,.6)}
 .insta:hover{opacity:.7}
+html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.top a,.insta{-webkit-user-select:text;user-select:text}
+#ed{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;background:rgba(0,0,0,.72);padding:10px 14px;font:12px/1.5 monospace;white-space:pre;border-radius:4px;max-width:96vw;overflow:auto;-webkit-user-select:text;user-select:text}
+.ed #ed{display:block}.ed #hint,.ed .insta{display:none}.ed .slide{transition-duration:.2s}
 #hint{position:fixed;left:22px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;opacity:.55;font-size:11px;letter-spacing:.04em;transition:opacity .4s}
 #hint.off{opacity:0}
 </style>
@@ -44,6 +48,9 @@ body{color:#fff;font:12px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
 </div>
 
 <a class="insta nombre" href="https://www.instagram.com/claraexposingfilm/" target="_blank" rel="noopener">@claraexposingfilm</a>
+
+<div id="ed"></div>
+<div id="hint">Arrastra tus fotos aquí para probarlas</div>
 
 <script>
 /* ====== TUS FOTOS ======
@@ -105,6 +112,14 @@ var AJUSTE = "cover"; /* "cover" = llena toda la pantalla (recorta los bordes)
                          "contain" = se ve la foto entera, con barras negras */
 var SEGUNDOS_POR_FOTO = 3.5;
 
+/* ====== CELULAR vs COMPUTADORA ======
+   Cada foto puede llevar una 3ª posición, solo para el celular (pantalla vertical):
+     ["fotos/fot3.jpg", "50% 50%", "30% 50%"]   → compu: centro · celular: más a la izquierda
+   Si no pones la 3ª, el celular usa la misma posición que la compu.
+   Para encontrar la posición ideal sin adivinar, abre la página con  #editar  al final
+   (ej: tuweb.github.io/#editar): pausa las fotos y con las flechas mueves el encuadre. */
+var AJUSTE_CELULAR = "cover"; /* "cover" o "contain", solo para el celular */
+
 /* ---------- código (no hace falta tocar) ---------- */
 var fallback = [
   "radial-gradient(circle at 30% 40%,#777,#111 70%)",
@@ -112,24 +127,48 @@ var fallback = [
   "radial-gradient(circle at 70% 60%,#999,#0b0b0b 75%)",
   "linear-gradient(200deg,#ddd,#222 60%)"
 ];
+var editor = location.hash === '#editar';
+if (editor) document.body.classList.add('ed');
 var stage = document.getElementById('stage'), slides = [], i = 0, timer = null;
+
+function esVertical(){ return window.innerHeight > window.innerWidth; }
+
+function aplicar(){
+  var v = esVertical();
+  slides.forEach(function(d){
+    d.style.backgroundPosition = v ? d._pos.cel : d._pos.pc;
+    d.style.backgroundSize = v ? AJUSTE_CELULAR : AJUSTE;
+  });
+}
 
 function build(list){
   stage.innerHTML = ''; slides = []; i = 0;
   list.forEach(function(s){
     var d = document.createElement('div'); d.className = 'slide';
-    d.style.backgroundImage = s.bg; d.style.backgroundPosition = s.pos || 'center'; d.style.backgroundSize = AJUSTE; d.style.backgroundRepeat = 'no-repeat'; stage.appendChild(d); slides.push(d);
+    d.style.backgroundImage = s.bg; d.style.backgroundRepeat = 'no-repeat';
+    d._pos = { pc: s.pos || 'center', cel: s.posCel || s.pos || 'center' };
+    d._name = s.name || '';
+    stage.appendChild(d); slides.push(d);
   });
+  aplicar();
   slides[0].classList.add('on');
   clearInterval(timer);
-  if (slides.length > 1) timer = setInterval(function(){
-    slides[i].classList.remove('on'); i = (i + 1) % slides.length; slides[i].classList.add('on');
-  }, SEGUNDOS_POR_FOTO * 1000);
+  if (slides.length > 1 && !editor) timer = setInterval(function(){ ir(1); }, SEGUNDOS_POR_FOTO * 1000);
+  mostrarEditor();
 }
+
+function ir(n){
+  slides[i].classList.remove('on'); i = (i + n + slides.length) % slides.length; slides[i].classList.add('on');
+  mostrarEditor();
+}
+
 build(photos.length ? photos.map(function(p){
-  var u = Array.isArray(p) ? p[0] : p, pos = Array.isArray(p) ? p[1] : 'center';
-  return { bg: 'url("' + u + '")', pos: pos };
+  var a = Array.isArray(p) ? p : [p];
+  return { bg: 'url("' + a[0] + '")', pos: a[1], posCel: a[2], name: a[0] };
 }) : fallback.map(function(g){ return { bg: g }; }));
+
+window.addEventListener('resize', aplicar);
+window.addEventListener('orientationchange', aplicar);
 
 /* Arrastrar y soltar fotos */
 window.addEventListener('dragover', function(e){ e.preventDefault(); });
@@ -137,9 +176,46 @@ window.addEventListener('drop', function(e){
   e.preventDefault();
   var files = Array.prototype.filter.call(e.dataTransfer.files, function(f){ return f.type.indexOf('image/') === 0; });
   if (!files.length) return;
-  build(files.map(function(f){ return { bg: 'url("' + URL.createObjectURL(f) + '")' }; }));
+  build(files.map(function(f){ return { bg: 'url("' + URL.createObjectURL(f) + '")', name: f.name }; }));
   document.getElementById('hint').classList.add('off');
 });
+
+/* ---------- modo editor (#editar) ---------- */
+function parsePos(t){
+  var kw = { left:0, right:100, top:0, bottom:100, center:50 };
+  function n(x){ if (x === undefined) return 50; if (x in kw) return kw[x]; var f = parseFloat(x); return isNaN(f) ? 50 : f; }
+  var p = String(t).trim().split(/\s+/), a = p[0], b = p[1];
+  if (b === undefined) return (a === 'top' || a === 'bottom') ? [50, n(a)] : [n(a), 50];
+  if (a === 'top' || a === 'bottom') return [n(b), n(a)];
+  return [n(a), n(b)];
+}
+
+function mostrarEditor(){
+  if (!editor || !slides.length) return;
+  var d = slides[i];
+  document.getElementById('ed').textContent =
+    'Foto ' + (i + 1) + ' de ' + slides.length + ' · mirando en: ' + (esVertical() ? 'CELULAR (vertical)' : 'COMPUTADORA (horizontal)') + '\n' +
+    'Flechas: mover el encuadre   ·   . (punto) siguiente   ·   , (coma) anterior\n\n' +
+    'Copia esto en tu lista:\n["' + d._name + '", "' + d._pos.pc + '", "' + d._pos.cel + '"],';
+}
+
+document.addEventListener('keydown', function(e){
+  if (!editor || !slides.length) return;
+  if (e.key === '.') { ir(1); return; }
+  if (e.key === ',') { ir(-1); return; }
+  var mov = { ArrowLeft:[-5,0], ArrowRight:[5,0], ArrowUp:[0,-5], ArrowDown:[0,5] }[e.key];
+  if (!mov) return;
+  e.preventDefault();
+  var d = slides[i], k = esVertical() ? 'cel' : 'pc', v = parsePos(d._pos[k]);
+  v[0] = Math.max(0, Math.min(100, v[0] + mov[0]));
+  v[1] = Math.max(0, Math.min(100, v[1] + mov[1]));
+  d._pos[k] = v[0] + '% ' + v[1] + '%';
+  aplicar(); mostrarEditor();
+});
+
+/* Protección básica: sin clic derecho, sin arrastrar ni mantener pulsado para guardar */
+document.addEventListener('contextmenu', function(e){ if (!editor) e.preventDefault(); });
+document.addEventListener('dragstart', function(e){ e.preventDefault(); });
 
 </script>
 </body>
