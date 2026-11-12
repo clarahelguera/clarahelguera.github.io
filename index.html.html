@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clara Helguera — photography</title>
+
+<!-- Fuente de Google (necesita internet la primera vez). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300&display=swap" rel="stylesheet">
+
+<style>
+/* ====== CAMBIA AQUÍ LA TIPOGRAFÍA DE TU NOMBRE ====== */
+:root{
+  --font-nombre: Archivo, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --peso-nombre: 300;
+  --tam-nombre: 12px;
+  --espaciado-nombre: .04em;
+}
+/* =================================================== */
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#000;overflow:hidden}
+body{color:#fff;font:12px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+.slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.6s ease}
+.slide.on{opacity:1}
+.top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:baseline;padding:calc(18px + env(safe-area-inset-top,0px)) 22px 0;z-index:3;letter-spacing:.04em;text-shadow:0 0 8px rgba(0,0,0,.6)}
+.top a{color:#fff;text-decoration:none}
+.top a:hover{opacity:.7}
+.nombre{font-family:var(--font-nombre);font-weight:var(--peso-nombre);font-size:var(--tam-nombre);letter-spacing:var(--espaciado-nombre);line-height:1.1}
+.insta{position:fixed;right:22px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;color:#fff;text-decoration:none;text-shadow:0 0 8px rgba(0,0,0,.6)}
+.insta:hover{opacity:.7}
+#hint{position:fixed;left:22px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;opacity:.55;font-size:11px;letter-spacing:.04em;transition:opacity .4s}
+#hint.off{opacity:0}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<div class="top">
+  <span class="nombre">clara helguera</span>
+  <a href="mailto:clarahelguera@gmail.com">clarahelguera@gmail.com</a>
+</div>
+
+<a class="insta nombre" href="https://www.instagram.com/claraexposingfilm/" target="_blank" rel="noopener">@claraexposingfilm</a>
+
+//<div id="hint">Arrastra tus fotos aquí para //probarlas</div>
+
+<script>
+/* ====== TUS FOTOS ======
+   1) Crea una carpeta "fotos" junto a este archivo.
+   2) Pon tus imágenes dentro y escribe sus nombres aquí.
+   (Sin editar nada, también puedes arrastrar fotos a la ventana para verlas al momento.) */
+
+var photos = [
+  "fotos/fot1.jpg",
+  ["fotos/fot2.jpeg","50% 20%"],
+  //"fotos/fot3.jpg",
+  //"fotos/fot4.jpg",
+  //"fotos/fot5.jpg",
+  //"fotos/fot6.jpg",
+  ["fotos/fot7.jpg", "50% 20%"],
+  //"fotos/fot8.jpg",
+  //"fotos/fot9.jpg",
+  ["fotos/fot10.jpg", "50% 80%"],
+  "fotos/fot11.jpg",
+  "fotos/fot12.jpg",
+  //"fotos/fot13.jpg",
+  //"fotos/fot14.jpg",
+  "fotos/fot15.jpg",
+  "fotos/fot16.jpg",
+  "fotos/fot17.jpg",
+  //"fotos/fot18.jpg",
+  //["fotos/fot19.jpg","50% 80%"],
+  "fotos/fot20.jpg",
+  "fotos/fot21.jpg",
+  //"fotos/fot22.jpg",
+  ["fotos/fot23.jpg","50% 20%"],
+  "fotos/fot24.jpg",
+  //"fotos/fot25.jpg",
+  //"fotos/fot26.jpg",
+  //"fotos/fot27.jpg",
+  "fotos/fot28.jpg",
+  //"fotos/fot29.jpg",
+  ["fotos/fot30.jpg","50% 80%"],
+  ["fotos/fot31.jpg","50% 80%"],
+  //"fotos/fot32.jpg",
+  //"fotos/fot33.jpg",
+  //"fotos/fot34.jpg",
+  ["fotos/fot35.jpg","50% 80%"],
+  //"fotos/fot36.jpg",
+  "fotos/fot37.jpg",
+  //["fotos/fot38.jpg","50% 20%"],
+  "fotos/fot39.jpg",
+  //"fotos/fot40.jpg",
+  //"fotos/fot41.jpg",
+];
+  // "fotos/01.jpg",                    // centrada (lo normal)
+  // ["fotos/02.jpg", "50% 20%"],       // mostrar más la parte de arriba
+  // ["fotos/03.jpg", "50% 80%"],       // mostrar más la parte de abajo
+  // ["fotos/04.jpg", "20% 50%"],       // mostrar más la parte de la izquierda
+
+/* Posición: el primer número es horizontal (0% = izquierda, 100% = derecha)
+   y el segundo vertical (0% = arriba, 100% = abajo). "50% 50%" es el centro. */
+var AJUSTE = "cover"; /* "cover" = llena toda la pantalla (recorta los bordes)
+                         "contain" = se ve la foto entera, con barras negras */
+var SEGUNDOS_POR_FOTO = 3.5;
+
+/* ---------- código (no hace falta tocar) ---------- */
+var fallback = [
+  "radial-gradient(circle at 30% 40%,#777,#111 70%)",
+  "linear-gradient(135deg,#2a2a2a,#bbb)",
+  "radial-gradient(circle at 70% 60%,#999,#0b0b0b 75%)",
+  "linear-gradient(200deg,#ddd,#222 60%)"
+];
+var stage = document.getElementById('stage'), slides = [], i = 0, timer = null;
+
+function build(list){
+  stage.innerHTML = ''; slides = []; i = 0;
+  list.forEach(function(s){
+    var d = document.createElement('div'); d.className = 'slide';
+    d.style.backgroundImage = s.bg; d.style.backgroundPosition = s.pos || 'center'; d.style.backgroundSize = AJUSTE; d.style.backgroundRepeat = 'no-repeat'; stage.appendChild(d); slides.push(d);
+  });
+  slides[0].classList.add('on');
+  clearInterval(timer);
+  if (slides.length > 1) timer = setInterval(function(){
+    slides[i].classList.remove('on'); i = (i + 1) % slides.length; slides[i].classList.add('on');
+  }, SEGUNDOS_POR_FOTO * 1000);
+}
+build(photos.length ? photos.map(function(p){
+  var u = Array.isArray(p) ? p[0] : p, pos = Array.isArray(p) ? p[1] : 'center';
+  return { bg: 'url("' + u + '")', pos: pos };
+}) : fallback.map(function(g){ return { bg: g }; }));
+
+/* Arrastrar y soltar fotos */
+window.addEventListener('dragover', function(e){ e.preventDefault(); });
+window.addEventListener('drop', function(e){
+  e.preventDefault();
+  var files = Array.prototype.filter.call(e.dataTransfer.files, function(f){ return f.type.indexOf('image/') === 0; });
+  if (!files.length) return;
+  build(files.map(function(f){ return { bg: 'url("' + URL.createObjectURL(f) + '")' }; }));
+  document.getElementById('hint').classList.add('off');
+});
+
+</script>
+</body>
+</html>
